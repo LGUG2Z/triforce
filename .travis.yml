@@ -2,6 +2,11 @@ sudo: required
 services:
   - docker
 
+addons:
+  apt:
+    packages:
+      - docker-ce
+
 env:
   global:
     - NORMAL_IMAGE=lgug2z/triforce
