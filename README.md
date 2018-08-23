@@ -1,6 +1,8 @@
 # triforce
+[![Go Report Card](https://goreportcard.com/badge/github.com/lgug2z/triforce)](https://goreportcard.com/report/github.com/lgug2z/triforce)
 [![Maintainability](https://api.codeclimate.com/v1/badges/2296d2da4304647c9bcc/maintainability)](https://codeclimate.com/github/LGUG2Z/triforce/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/2296d2da4304647c9bcc/test_coverage)](https://codeclimate.com/github/LGUG2Z/triforce/test_coverage)
+[![Build Status](https://travis-ci.org/LGUG2Z/triforce.svg?branch=master)](https://travis-ci.org/LGUG2Z/triforce)
 
 `triforce` assembles and links `node` dependencies across meta and monorepo projects.
 
