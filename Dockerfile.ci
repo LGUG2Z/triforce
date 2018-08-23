@@ -1,0 +1,30 @@
+FROM golang AS build
+WORKDIR /go/src/github.com/LGUG2Z/triforce
+COPY . /go/src/github.com/LGUG2Z/triforce
+RUN go build -o /usr/local/bin/triforce
+
+FROM ubuntu:18.04
+ENV NODE_VERSION="8"
+ENV JDK_VERSION="8"
+
+COPY --from=build /usr/local/bin/triforce /usr/local/bin
+
+RUN apt-get update -qq \
+ && apt-get install -qq curl gnupg \
+ && curl -sL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash -
+
+RUN apt-get install -qq nodejs \
+                        openssh-client \
+                        git-core \
+                        build-essential \
+                        libpng-dev \
+                        python \
+                        libkrb5-dev \
+                        openjdk-${JDK_VERSION}-jdk
+
+RUN apt-get clean \
+ && rm -rvf /var/lib/apt/lists/* /var/tmp/*
+
+RUN npm install -g npm@latest \
+                   yarn \
+                   meta

@@ -1,0 +1,11 @@
+package: github.com/LGUG2Z/triforce
+import:
+- package: github.com/Jeffail/gabs
+  version: "1.1"
+- package: github.com/urfave/cli
+  version: v1.20.0
+testImport:
+- package: github.com/onsi/ginkgo
+  version: v1.6.0
+- package: github.com/onsi/gomega
+  version: v1.4.1

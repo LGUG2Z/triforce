@@ -1,0 +1,47 @@
+sudo: required
+services:
+  - docker
+
+env:
+  global:
+    - NORMAL_IMAGE=lgug2z/triforce
+    - CI_IMAGE=lgug2z/triforce:ci
+    - REGISTRY_USER=lgug2z
+    - CC_TEST_REPORTER_ID=4373f75f9cbbb730b2d057fd54c89818f9c72fcc8209991c2159876494ba6702
+
+language: go
+
+go:
+  - 1.10.x
+
+go_import_path: github.com/LGUG2Z/triforce
+
+install:
+- wget https://github.com/Masterminds/glide/releases/download/v0.13.1/glide-v0.13.1-linux-amd64.tar.gz
+- tar -xzvf glide-v0.13.1-linux-amd64.tar.gz
+- cp linux-amd64/glide $GOPATH/bin
+- glide install -v
+
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+
+script:
+- go test -coverprofile c.out ./...
+
+after_script:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+
+before_deploy:
+  - docker pull "${NORMAL_IMAGE}" || true
+  - docker pull "${CI_IMAGE}" || true
+  - docker build --pull --cache-from "${NORMAL_IMAGE}" --tag "${NORMAL_IMAGE}:latest" .
+  - docker build --pull --cache-from "${CI_IMAGE}" --tag "${CI_IMAGE}" . --file=Dockerfile.ci
+  - docker login -u "${REGISTRY_USER}" -p "${REGISTRY_PASS}"
+
+deploy:
+  provider: script
+  script: docker push "${NORMAL_IMAGE}:latest" && docker push "${CI_IMAGE}"
+  on:
+    branch: master
