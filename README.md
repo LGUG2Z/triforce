@@ -120,9 +120,9 @@ example-metarepo
 ├── lib-1
 └── node_modules
     ├── acl 
-    ├── api-1 # symlink to ../api-1
-    ├── app-1 # symlink to ../app-1
-    ├── lib-1 # symlink to ../lib-2
+    ├── api-1 -> ../api-1
+    ├── app-1 -> ../app-1
+    ├── lib-1 -> ../lib-1
     ├── lodash
     ├── node-sass
     └── react
