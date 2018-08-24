@@ -51,7 +51,7 @@ func NewTestSpace(projects map[string]*BasicPackageJSON) (*TestSpace, error) {
 			return nil, err
 		}
 
-		if err := ioutil.WriteFile(filepath.Join(t.RootFolder, project, "package.json"), bytes, os.FileMode(0700)); err != nil {
+		if err := ioutil.WriteFile(filepath.Join(t.RootFolder, project, "package.json"), bytes, os.FileMode(0666)); err != nil {
 			return nil, err
 		}
 	}
@@ -91,7 +91,7 @@ var _ = Describe("Assemble", func() {
 			p["project-1"] = NewBasicPackageJSONBuilder().Build()
 			t, err = NewTestSpace(p)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(ioutil.WriteFile(filepath.Join(t.RootFolder, "project-1", "package.json"), []byte("not json"), os.FileMode(0700))).To(Succeed())
+			Expect(ioutil.WriteFile(filepath.Join(t.RootFolder, "project-1", "package.json"), []byte("not json"), os.FileMode(0666))).To(Succeed())
 
 			args := []string{"triforce", "assemble", t.RootFolder}
 			Expect(cli.App().Run(args)).NotTo(Succeed())

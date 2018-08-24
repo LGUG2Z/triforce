@@ -110,7 +110,7 @@ func Assemble() cli.Command {
 				return err
 			}
 
-			return ioutil.WriteFile("package.json", bytes, os.FileMode(0644))
+			return ioutil.WriteFile("package.json", bytes, os.FileMode(0666))
 		},
 	}
 }

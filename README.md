@@ -6,8 +6,58 @@
 
 `triforce` assembles and links `node` dependencies across meta and monorepo projects.
 
-## When this can be useful
+## Installation and Quickstart
+### Binary
+```bash
+go get -u github.com/LGUG2Z/triforce
 
+cd /your/meta/or/mono/repo
+triforce assemble --exclude whatever .
+
+npm install
+
+triforce link .
+```
+
+### Docker Image
+```
+docker pull lgug2z/triforce:latest
+docker run --workdir /tmp --volume ${HOME}/projects:/tmp lgug2z/triforce:latest assemble .
+
+npm install
+
+docker run --workdir /tmp --volume ${HOME}/projects:/tmp lgug2z/triforce:latest link .
+```
+
+### Docker-Compose
+```yaml
+version: '3.6'
+
+services:
+  assemble:
+    image: lgug2z/triforce
+    volumes:
+      - /your/meta/or/mono/repo:/tmp
+    working_dir: /tmp
+    command: assemble .
+
+  link:
+    image: lgug2z/triforce
+    volumes:
+      - /your/meta/or/mono/repo:/tmp
+    working_dir: /tmp
+    command: link .
+```
+
+### Example Docker CI Image
+If you want to run a scheduled CI job that can assemble all of your project
+dependencies, and have the required apt dependencies to install them and
+compile any native extensions they might require:
+```bash
+docker pull lgug2z/triforce:ci
+```
+
+## When this can be useful
 ### Multi projects with their own package.json file
 Imagine you have a codebase that consists of multiple different node projects,
 and that each of these projects has its own `package.json` file which requires
