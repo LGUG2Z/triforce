@@ -229,6 +229,34 @@ var _ = Describe("Assemble", func() {
 				Expect(pkg.Dependencies).To(HaveKeyWithValue("dep-a", "2.0.0"))
 			})
 		})
+
+		It("should skip if trying to add the same dependency with a lower version", func() {
+			p["project-1"] = NewBasicPackageJSONBuilder().
+				Dependency("dep-a", "1.0.0").
+				Build()
+
+			p["project-2"] = NewBasicPackageJSONBuilder().
+				Dependency("dep-a", "0.2.0").
+				Build()
+
+			t, err = NewTestSpace(p)
+			Expect(err).NotTo(HaveOccurred())
+
+			args := []string{"triforce", "assemble", t.RootFolder}
+			Expect(cli.App().Run(args)).To(Succeed())
+			Expect("package.json").To(BeAnExistingFile())
+
+			bytes, err := ioutil.ReadFile("package.json")
+			Expect(err).NotTo(HaveOccurred())
+			pkg := BasicPackageJSON{}
+			Expect(json.Unmarshal(bytes, &pkg)).To(Succeed())
+
+			Expect(len(pkg.Dependencies)).To(Equal(1))
+
+			By("skipping the dependency with the lower version", func() {
+				Expect(pkg.Dependencies).To(HaveKeyWithValue("dep-a", "1.0.0"))
+			})
+		})
 	})
 
 	Context("projects with overlapping devDependencies", func() {
@@ -255,8 +283,36 @@ var _ = Describe("Assemble", func() {
 
 			Expect(len(pkg.DevDependencies)).To(Equal(1))
 
-			By("selecting the devdependency with the highest version number", func() {
+			By("selecting the devDependency with the highest version number", func() {
 				Expect(pkg.DevDependencies).To(HaveKeyWithValue("devdep-a", "~1.0.1"))
+			})
+		})
+
+		It("should skip if trying to add the same devDependency with a lower version", func() {
+			p["project-1"] = NewBasicPackageJSONBuilder().
+				DevDependency("devdep-a", "^1.0.0").
+				Build()
+
+			p["project-2"] = NewBasicPackageJSONBuilder().
+				DevDependency("devdep-a", "~0.0.1").
+				Build()
+
+			t, err = NewTestSpace(p)
+			Expect(err).NotTo(HaveOccurred())
+
+			args := []string{"triforce", "assemble", t.RootFolder}
+			Expect(cli.App().Run(args)).To(Succeed())
+			Expect("package.json").To(BeAnExistingFile())
+
+			bytes, err := ioutil.ReadFile("package.json")
+			Expect(err).NotTo(HaveOccurred())
+			pkg := BasicPackageJSON{}
+			Expect(json.Unmarshal(bytes, &pkg)).To(Succeed())
+
+			Expect(len(pkg.DevDependencies)).To(Equal(1))
+
+			By("skipping the devDependency with the lower version number", func() {
+				Expect(pkg.DevDependencies).To(HaveKeyWithValue("devdep-a", "^1.0.0"))
 			})
 		})
 
@@ -290,6 +346,36 @@ var _ = Describe("Assemble", func() {
 			By("selecting the dependency with the highest version number", func() {
 				Expect(pkg.Dependencies).To(HaveKeyWithValue("somelib", "^2.6.1"))
 			})
+		})
+
+		It("should skip the devDependency if the previously added dependency is of a higher version", func() {
+			p["project-1"] = NewBasicPackageJSONBuilder().
+				Dependency("somelib", "^2.7.0").
+				Build()
+
+			p["project-2"] = NewBasicPackageJSONBuilder().
+				DevDependency("somelib", "^2.6.1").
+				Build()
+
+			t, err = NewTestSpace(p)
+			Expect(err).NotTo(HaveOccurred())
+
+			args := []string{"triforce", "assemble", t.RootFolder}
+			Expect(cli.App().Run(args)).To(Succeed())
+			Expect("package.json").To(BeAnExistingFile())
+
+			bytes, err := ioutil.ReadFile("package.json")
+			Expect(err).NotTo(HaveOccurred())
+			pkg := BasicPackageJSON{}
+			Expect(json.Unmarshal(bytes, &pkg)).To(Succeed())
+
+			Expect(len(pkg.DevDependencies)).To(Equal(0))
+			Expect(len(pkg.Dependencies)).To(Equal(1))
+
+			By("skipping the dependency with the lower version number", func() {
+				Expect(pkg.Dependencies).To(HaveKeyWithValue("somelib", "^2.7.0"))
+			})
+
 		})
 	})
 })
@@ -346,6 +432,34 @@ var _ = Describe("Link", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			args := []string{"triforce", "link", t.RootFolder}
+			Expect(cli.App().Run(args)).To(Succeed())
+
+			for _, project := range []string{"project-1", "project-2"} {
+				expectedSymlink := filepath.Join(t.RootFolder, "node_modules", project)
+				Expect(expectedSymlink).To(BeADirectory())
+
+				symlinkOrigin, err := os.Readlink(expectedSymlink)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(symlinkOrigin).To(Equal(fmt.Sprintf("../%s", project)))
+			}
+		})
+
+		It("should remove existing symlinks before trying to create new ones", func() {
+			p["project-1"] = NewBasicPackageJSONBuilder().
+				Dependency("dep", "^2.5.0").
+				Build()
+
+			p["project-2"] = NewBasicPackageJSONBuilder().
+				DevDependency("devdep", "^2.6.1").
+				Build()
+
+			t, err = NewTestSpace(p)
+			Expect(err).NotTo(HaveOccurred())
+
+			args := []string{"triforce", "link", t.RootFolder}
+			Expect(cli.App().Run(args)).To(Succeed())
+
+			// run again to make sure we handle the case where symlinks already exist
 			Expect(cli.App().Run(args)).To(Succeed())
 
 			for _, project := range []string{"project-1", "project-2"} {

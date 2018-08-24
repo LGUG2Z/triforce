@@ -13,6 +13,7 @@ import (
 	"path"
 
 	"github.com/Jeffail/gabs"
+	"github.com/fatih/color"
 	"github.com/urfave/cli"
 )
 
@@ -74,6 +75,8 @@ func Assemble() cli.Command {
 				return err
 			}
 
+			projectDependencyMap := make(map[*gabs.Container]string)
+
 			for _, projectDirectory := range projectDirectories {
 				pkgPath := filepath.Join(root, projectDirectory, PackageJSON)
 				if _, err := os.Stat(pkgPath); err == nil {
@@ -83,15 +86,16 @@ func Assemble() cli.Command {
 					}
 
 					parsedPackageJSONs = append(parsedPackageJSONs, parsed)
+					projectDependencyMap[parsed] = path.Base(projectDirectory)
 				}
 			}
 
 			for _, parsed := range parsedPackageJSONs {
-				extractDependencies(parsed, dependencies, exclude)
+				extractDependencies(projectDependencyMap[parsed], parsed, dependencies, exclude)
 			}
 
 			for _, parsed := range parsedPackageJSONs {
-				extractDevDependencies(parsed, dependencies, devDependencies, exclude)
+				extractDevDependencies(projectDependencyMap[parsed], parsed, dependencies, devDependencies, exclude)
 			}
 
 			t := TriforcePackageJSON{
@@ -142,11 +146,21 @@ func Link() cli.Command {
 					projectDirectory := path.Join("..", f)
 					symlinkDestination := filepath.Join(nodeModules, f)
 
+					// remove symlinks if they already exist
+					if _, err := os.Lstat(symlinkDestination); err == nil {
+						if err := os.Remove(symlinkDestination); err != nil {
+							return err
+						}
+					}
+
 					if err := os.Symlink(projectDirectory, symlinkDestination); err != nil {
 						return err
 					}
+					fmt.Printf("symlinked %s to %s\n", f, fmt.Sprintf("./node_modules/%s", f))
 				}
 			}
+
+			color.Green("finished linking private dependencies to ./node_modules")
 
 			return nil
 		}),
@@ -180,50 +194,103 @@ func isAPrivateDependency(version string, exclude ...string) bool {
 	return false
 }
 
-func extractDependencies(parsed *gabs.Container, dependencies map[string]string, exclude []string) {
+func extractDependencies(project string, parsed *gabs.Container, dependencies map[string]string, exclude []string) {
 	if data, ok := parsed.Path("dependencies").Data().(map[string]interface{}); ok {
+		if len(data) > 0 {
+			color.Green("\nassembling dependencies from %s", project)
+		}
+
 		for dep, version := range data {
 			if isAPrivateDependency(version.(string), exclude...) {
+				color.Red(excluded("dependency", dep, version.(string)))
 				continue
 			}
 
 			// Update in dependencies if it is a greater version
 			if val, ok := dependencies[dep]; ok {
-				if version.(string) > val {
+				if shouldUpdate(val, version.(string)) {
 					dependencies[dep] = version.(string)
+					fmt.Println(updated("dependency", dep, val, version.(string)))
+					continue
 				}
+				color.Yellow(skipped("dependency", dep, version.(string), val))
+				continue
 			} else {
 				// Otherwise add for the first time
 				dependencies[dep] = version.(string)
+				fmt.Println(added("dependency", dep, version.(string)))
 			}
 		}
 	}
 }
 
-func extractDevDependencies(parsed *gabs.Container, dependencies, devDependencies map[string]string, exclude []string) {
+func extractDevDependencies(project string, parsed *gabs.Container, dependencies, devDependencies map[string]string, exclude []string) {
 	if data, ok := parsed.Path("devDependencies").Data().(map[string]interface{}); ok {
+		if len(data) > 0 {
+			color.Green("\nassembling devDependencies from %s", project)
+		}
+
 		for devDep, version := range data {
 			if isAPrivateDependency(version.(string), exclude...) {
+				color.Red(excluded("devDependency", devDep, version.(string)))
 				continue
 			}
 
 			// Update in dependencies if it is a greater version
 			if val, ok := dependencies[devDep]; ok {
-				if version.(string) > val {
+				if shouldUpdate(val, version.(string)) {
 					dependencies[devDep] = version.(string)
+					fmt.Println(promoted(devDep, val, version.(string)))
+					continue
 				}
+				color.Yellow(skipped("devDependency", devDep, version.(string), val))
 				continue
 			}
 
 			// Otherwise update in devDependencies if the version is greater
 			if val, ok := devDependencies[devDep]; ok {
-				if version.(string) > val {
+				if shouldUpdate(val, version.(string)) {
 					devDependencies[devDep] = version.(string)
+					fmt.Println(updated("devDependency", devDep, val, version.(string)))
+					continue
 				}
+				color.Yellow(skipped("devDependency", devDep, version.(string), val))
+				continue
 			} else {
 				// Otherwise add for the first time
 				devDependencies[devDep] = version.(string)
+				fmt.Println(added("devDependency", devDep, version.(string)))
 			}
 		}
 	}
+}
+
+func shouldUpdate(original, new string) bool {
+	original = strings.TrimPrefix(original, "^")
+	original = strings.TrimPrefix(original, "~")
+
+	new = strings.TrimPrefix(new, "^")
+	new = strings.TrimPrefix(new, "~")
+
+	return new > original
+}
+
+func skipped(depType, name, lowerVersion, higherVersion string) string {
+	return fmt.Sprintf("skipped %s \"%s\" (previously assembled with equal or higher version \"%s\" > \"%s\")", depType, name, higherVersion, lowerVersion)
+}
+
+func excluded(depType, name, version string) string {
+	return fmt.Sprintf("excluded %s \"%s\" (version \"%s\" matches exclusion patterns)", depType, name, version)
+}
+
+func added(depType, name, version string) string {
+	return fmt.Sprintf("added %s \"%s\" with version \"%s\"", depType, name, version)
+}
+
+func updated(depType, name, lowerVersion, higherVersion string) string {
+	return fmt.Sprintf("updated %s \"%s\" to higher version (\"%s\" > \"%s\")", depType, name, higherVersion, lowerVersion)
+}
+
+func promoted(name, lowerVersion, higherVersion string) string {
+	return fmt.Sprintf("promoted devDependency \"%s\" to replace previously added dependency with higher version (\"%s\" > \"%s\")", name, higherVersion, lowerVersion)
 }

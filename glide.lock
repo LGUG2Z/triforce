@@ -1,10 +1,20 @@
-hash: 9fd1ab3640a0e4843f0ce9f828c4cffae350ab1bd185eefd005f3a15b9ea247f
-updated: 2018-08-23T17:51:30.219502+01:00
+hash: 1c0cae9bece997e8a27b9a622f09f4bae3a61e77c901c6b7b76b924029da196f
+updated: 2018-08-24T08:59:14.861888+01:00
 imports:
+- name: github.com/fatih/color
+  version: 5b77d2a35fb0ede96d138fc9a99f5c9b6aef11b4
 - name: github.com/Jeffail/gabs
   version: 7a0fed31069aba77993a518cc2f37b28ee7aa883
+- name: github.com/mattn/go-colorable
+  version: efa589957cd060542a26d2dd7832fd6a6c6c3ade
+- name: github.com/mattn/go-isatty
+  version: 6ca4dbf54d38eea1a992b3c722a76a5d1c4cb25c
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
+- name: golang.org/x/sys
+  version: bff228c7b664c5fce602223a05fb708fd8654986
+  subpackages:
+  - unix
 testImports:
 - name: github.com/hpcloud/tail
   version: a1dbeea552b7c8df4b542c66073e393de198a800
@@ -53,10 +63,6 @@ testImports:
   - html
   - html/atom
   - html/charset
-- name: golang.org/x/sys
-  version: bff228c7b664c5fce602223a05fb708fd8654986
-  subpackages:
-  - unix
 - name: golang.org/x/text
   version: 5c1cf69b5978e5a34c5f9ba09a83e56acc4b7877
   subpackages:
