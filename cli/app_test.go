@@ -196,7 +196,34 @@ var _ = Describe("Assemble", func() {
 			Expect(json.Unmarshal(bytes, &pkg)).To(Succeed())
 
 			Expect(len(pkg.Dependencies)).To(Equal(2))
-			Expect(len(pkg.Dependencies)).To(Equal(2))
+			Expect(len(pkg.DevDependencies)).To(Equal(2))
+		})
+
+		It("should only contain dependencies and devDependencies from projects matching the given filters", func() {
+			p["app-1"] = NewBasicPackageJSONBuilder().
+				Dependency("dep-a", "1.0.0").
+				DevDependency("devdev-a", "1.0.0").
+				Build()
+
+			p["api-1"] = NewBasicPackageJSONBuilder().
+				Dependency("dep-c", "1.0.0").
+				DevDependency("devdep-d", "1.0.0").
+				Build()
+
+			t, err = NewTestSpace(p)
+			Expect(err).NotTo(HaveOccurred())
+
+			args := []string{"triforce", "assemble", t.RootFolder, "--filter", "app-"}
+			Expect(cli.App().Run(args)).To(Succeed())
+			Expect("package.json").To(BeAnExistingFile())
+
+			bytes, err := ioutil.ReadFile("package.json")
+			Expect(err).NotTo(HaveOccurred())
+			pkg := BasicPackageJSON{}
+			Expect(json.Unmarshal(bytes, &pkg)).To(Succeed())
+
+			Expect(len(pkg.Dependencies)).To(Equal(1))
+			Expect(len(pkg.DevDependencies)).To(Equal(1))
 		})
 
 	})

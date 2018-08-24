@@ -49,10 +49,12 @@ func App() *cli.App {
 
 func Assemble() cli.Command {
 	return cli.Command{
-		Name:  "assemble",
-		Usage: "assembles the dependencies and devDependencies across all projects into a single package.json file",
+		Name:      "assemble",
+		ShortName: "a",
+		Usage:     "assembles the dependencies and devDependencies across all projects into a single package.json file",
 		Flags: []cli.Flag{
-			cli.StringSliceFlag{Name: "exclude", Usage: "patterns to exclude in versions", Value: &cli.StringSlice{"github", "gitlab", "bitbucket"}},
+			cli.StringSliceFlag{Name: "exclude, e", Usage: "patterns to exclude in versions", Value: &cli.StringSlice{"github", "gitlab", "bitbucket"}},
+			cli.StringSliceFlag{Name: "filter, f", Usage: "patterns to include in projects", Value: &cli.StringSlice{}},
 		},
 		Action: func(c *cli.Context) error {
 			if c.NArg() != 1 {
@@ -65,12 +67,13 @@ func Assemble() cli.Command {
 			}
 
 			exclude := c.StringSlice("exclude")
+			filter := c.StringSlice("filter")
 
 			var parsedPackageJSONs []*gabs.Container
 			dependencies := make(map[string]string)
 			devDependencies := make(map[string]string)
 
-			projectDirectories, err := getProjectFolders(root)
+			projectDirectories, err := getProjectFolders(root, filter)
 			if err != nil {
 				return err
 			}
@@ -117,8 +120,12 @@ func Assemble() cli.Command {
 
 func Link() cli.Command {
 	return cli.Command{
-		Name:  "link",
-		Usage: "links private projects inside of the node_modules folder at the meta or monorepo project root",
+		Name:      "link",
+		ShortName: "l",
+		Usage:     "links private projects inside of the node_modules folder at the meta or monorepo project root",
+		Flags: []cli.Flag{
+			cli.StringSliceFlag{Name: "filter, f", Usage: "patterns to include in projects", Value: &cli.StringSlice{}},
+		},
 		Action: cli.ActionFunc(func(c *cli.Context) error {
 			if c.NArg() != 1 {
 				return fmt.Errorf("triforce link requires a root meta or monorepo folder as an argument")
@@ -129,12 +136,14 @@ func Link() cli.Command {
 				return err
 			}
 
+			filter := c.StringSlice("filter")
+
 			nodeModules := filepath.Join(root, NodeModules)
 			if _, err := os.Stat(nodeModules); err != nil {
 				return fmt.Errorf("no node_modules folder found at %s", root)
 			}
 
-			projectFolders, err := getProjectFolders(root)
+			projectFolders, err := getProjectFolders(root, filter)
 			if err != nil {
 				return err
 			}
@@ -167,17 +176,28 @@ func Link() cli.Command {
 	}
 }
 
-func getProjectFolders(root string) ([]string, error) {
+func getProjectFolders(root string, filters []string) ([]string, error) {
 	var projectDirectories []string
 	dirs, err := ioutil.ReadDir(root)
 	if err != nil {
 		return nil, err
 	}
 
+	hasFilterPatterns := len(filters) > 0
+
 	for _, d := range dirs {
 		// ignore non-directories and hidden files
 		if d.IsDir() && !strings.HasPrefix(d.Name(), ".") {
-			projectDirectories = append(projectDirectories, d.Name())
+			if hasFilterPatterns {
+				for _, filter := range filters {
+					if strings.Contains(d.Name(), filter) {
+						projectDirectories = append(projectDirectories, d.Name())
+						continue
+					}
+				}
+			} else {
+				projectDirectories = append(projectDirectories, d.Name())
+			}
 		}
 	}
 
